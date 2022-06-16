@@ -45,6 +45,11 @@ if %rounded%==false (
 	set join1=┌
 	set join2=└
 )
+:: For janky error detection of multiple commands...
+:: It works... at least...
+set error1=1
+set error2=1
+set error3=1
 
 :: The prompt for CMD
 :: If you know what you are doing, you can change this to your liking
@@ -97,7 +102,11 @@ echo This will apply the prompt.
 echo Waiting 5 seconds, then you can continue...
 timeout /t 5 /nobreak > nul
 pause
-reg add "HKCU\Environment" /v "PROMPT" /t REG_SZ /d "%cmdprompt%" /f > nul
+if %allusers%==true (
+	reg add "HKCU\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /v "PROMPT" /t REG_SZ /d "%cmdprompt%" /f > nul
+) else (
+	reg add "HKCU\Environment" /v "PROMPT" /t REG_SZ /d "%cmdprompt%" /f > nul
+)
 if %errorlevel%==0 (goto custompromptfinish) else (goto custompromptfail)
 :custompromptfinish
 echo]
@@ -111,7 +120,7 @@ if %errorlevel%==1 goto main
 if %errorlevel%==2 exit /b
 :custompromptfail
 echo]
-echo Something went wrong whilst setting the PROMPT environment variable for the current user.
+echo Something went wrong whilst setting the PROMPT environment variable.
 pause
 exit /b
 	
@@ -122,9 +131,14 @@ echo Waiting 3 seconds, then you can continue...
 timeout /t 3 /nobreak > nul
 pause
 reg query "HKCU\SOFTWARE\Microsoft\Command Processor" /v "AutoRun" >nul 2>&1 | findstr prompt >nul 2>&1
-if %errorlevel%==0 (reg delete "HKCU\SOFTWARE\Microsoft\Command Processor" /f /v "AutoRun")
-reg delete "HKCU\Environment" /f /v "PROMPT" > nul
-if %errorlevel%==0 (goto revertcustompromptfinish) else (goto revertcustompromptfail)
+if %errorlevel%==0 (reg delete "HKCU\SOFTWARE\Microsoft\Command Processor" /f /v "AutoRun" && set error1=0)
+reg delete "HKCU\Environment" /f /v "PROMPT" >nul 2>&1
+if %errorlevel%==0 (set error2=0)
+reg delete "HKCU\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" /f /v "PROMPT" >nul 2>&1
+if %errorlevel%==0 (set error3=0)
+set all_errors=%error1% %error2% %error3%
+:: If all of commands above error out, then fail, else goto the finish (probably a better way of doing this but idk)
+if "%all_errors%"=="1 1 1" (goto revertcustompromptfail) else (goto revertcustompromptfinish)
 :revertcustompromptfinish
 echo]
 echo Done, restart all of your Command Prompt windows.
@@ -177,6 +191,7 @@ if %errorlevel%==0 (
 cls
 echo You can use custom colour schemes by using ColorTool and iTerm themes.
 echo I would recommend using the Nord theme with this prompt.
+echo Use the 'Find' tool in your web browser on the iTerm themes website to find themes.
 echo]
 echo 1) Visit the ColourTool page
 echo 2) Visit the iTerm themes page
