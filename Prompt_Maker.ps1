@@ -31,3 +31,4 @@ foreach ($element in $prompt){
 }
 
 cmd.exe /c setx PROMPT ($parsed_prompt -Join '$_')
+Write-Output 'Please restart any Command Prompt Sessions!'
